@@ -30,8 +30,8 @@ def get_width_px(x, default: int = 900) -> int:
 
 
 st.set_page_config(page_title="Создание маски", layout="wide")
-st.title("Создание маски")
-st.markdown("Загрузите фото, выберите кисть и рисуйте. Пересечения не усиливают цвет в редакторе.")
+st.title("Выделение области для изменения")
+st.markdown("Загрузите фото, выделите область для изменения.")
 
 uploaded_file = st.file_uploader("Выберите изображение:", type=["png", "jpg", "jpeg"])
 if not uploaded_file:
