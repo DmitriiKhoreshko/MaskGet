@@ -1,6 +1,6 @@
-streamlit==1.52.1
+streamlit
 streamlit-drawable-canvas-fix
 streamlit-container-width
-pillow==1.0.3
+pillow
 numpy
 opencv-python-headless
