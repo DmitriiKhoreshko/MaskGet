@@ -19,19 +19,18 @@ def signaturefunk(image):
     st.write("Canvas")
     
     # Конвертируем в data:URL для обхода image_to_url ошибки
-    bg_image_url = pil_to_data_url(image)
     
     canvas_result = st_canvas(
-        fill_color="#eee",
-        stroke_width=5,
-        stroke_color="black",
-        background_image=bg_image_url,  # Передаем строку, а не PIL
-        update_streamlit=False,
-        height=200,
-        width=700,
-        drawing_mode="freedraw",
-        key="signature_canvas"
-    )
+    fill_color="#eee",
+    stroke_width=5,
+    stroke_color="black",
+    background_image=image,  # PIL.Image.Image
+    update_streamlit=False,
+    height=200,
+    width=700,
+    drawing_mode="freedraw",
+    key="signature_canvas",
+)
     
     st.write("Image of the canvas")
     if canvas_result.image_data is not None:
