@@ -4,10 +4,14 @@
 
 import streamlit as st
 from streamlit_drawable_canvas import st_canvas
+from PIL import Image
+
+
+image=Image.open("test.png")
 
 st.title("Signature")
 
-def signaturefunk():
+def signaturefunk(image):
     
     st.write("Canvas")
 
@@ -15,7 +19,7 @@ def signaturefunk():
             fill_color="#eee",
             stroke_width=5,
             stroke_color="black",
-            background_color="white",
+            background_image=image,
             update_streamlit=False,
             height=200,
             width=700,
@@ -26,4 +30,4 @@ def signaturefunk():
     if canvas_result.image_data is not None:
         st.image(canvas_result.image_data)
 
-signaturefunk()
+signaturefunk(image)
