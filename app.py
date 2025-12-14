@@ -1,31 +1,10 @@
 import streamlit as st
 from streamlit_drawable_canvas import st_canvas
 from PIL import Image
-import io
-import base64
-import os
-
-def pil_to_data_url(pil_img):
-    """Конвертирует PIL Image в data:URL для стабильной работы на серверах"""
-    buf = io.BytesIO()
-    pil_img.save(buf, format="PNG")
-    return f"data:image/png;base64,{base64.b64encode(buf.getvalue()).decode()}"
-
-# Проверяем наличие файла
-image_path = "test.png"
-if os.path.exists(image_path):
-    image = Image.open(image_path)
-    background_url = pil_to_data_url(image)  # Конвертируем в data URL
-else:
-    st.error("Файл test.png не найден! Добавьте его в репозиторий.")
-    st.stop()
+import requests
+from io import BytesIO
 
 st.title("Signature")
-
-def pil_to_data_url(pil_img):
-    buf = io.BytesIO()
-    pil_img.save(buf, format="PNG")
-    return f"data:image/png;base64,{base64.b64encode(buf.getvalue()).decode()}"
 
 def signaturefunk(background_url):
     st.write("Canvas")
@@ -34,7 +13,7 @@ def signaturefunk(background_url):
         fill_color="#eee",
         stroke_width=5,
         stroke_color="black",
-        background_image=background_url,  # Теперь data URL вместо PIL
+        background_image=background_url,  # Используем data URL
         update_streamlit=False,
         height=200,
         width=700,
@@ -46,4 +25,20 @@ def signaturefunk(background_url):
     if canvas_result.image_data is not None:
         st.image(canvas_result.image_data)
 
-signaturefunk(image)
+# Основные исправления:
+
+# 1. Загрузка изображения из URL вместо локального файла
+try:
+    response = requests.get("https://avatars.mds.yandex.net/i?id=cda43f8d3f42f8297f108945fee84545_l-5031203-images-thumbs&n=13")
+    response.raise_for_status()  # Проверяем успешность запроса
+    image = Image.open(BytesIO(response.content))
+    
+    # Запускаем функцию с правильным аргументом (data URL)
+    signaturefunk(image)
+    
+except requests.exceptions.RequestException as e:
+    st.error(f"Ошибка при загрузке изображения: {e}")
+    st.stop()
+except Exception as e:
+    st.error(f"Произошла ошибка: {e}")
+    st.stop()
