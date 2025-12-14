@@ -4,3 +4,4 @@ streamlit-container-width
 pillow
 numpy
 opencv-python-headless
+streamlit-cropperjs
