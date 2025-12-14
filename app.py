@@ -6,46 +6,32 @@ import io
 import cv2
 from streamlit_container_width import st_container_width
 
-# =========================
-# PATCH: provide st_image.image_to_url for streamlit-drawable-canvas on new Streamlit [web:6][web:21]
-# =========================
-import base64
-import streamlit.elements.image as st_image
 
-if not hasattr(st_image, "image_to_url"):
-    def image_to_url(image, width=None, clamp=False, channels="RGB", output_format="PNG", image_id=None):
-        # If already a URL/string, just return it
-        if isinstance(image, str):
-            return image
-        # Minimal conversion PIL -> data URL
-        buf = io.BytesIO()
-        image.save(buf, format="PNG")
-        b64 = base64.b64encode(buf.getvalue()).decode("utf-8")
-        return f"data:image/png;base64,{b64}"
-
-    st_image.image_to_url = image_to_url  # type: ignore
-# =========================
-
-
-def extract_width_px(container_width_result, default: int = 900) -> int:
-    # streamlit-container-width may return dict/number/None [web:123]
-    if container_width_result is None:
+def get_width_px(x, default: int = 900) -> int:
+    """
+    streamlit-container-width может вернуть:
+    - число (width)
+    - dict (например {"width": ..., ...})
+    - None (пока не измерилось)
+    """
+    if x is None:
         return default
-    if isinstance(container_width_result, (int, float)):
-        return int(container_width_result)
-    if isinstance(container_width_result, dict):
-        w = container_width_result.get("width")
-        if isinstance(w, (int, float)):
-            return int(w)
-        for v in container_width_result.values():
+    if isinstance(x, (int, float)):
+        return int(x)
+    if isinstance(x, dict):
+        # самый ожидаемый формат
+        if "width" in x and isinstance(x["width"], (int, float)):
+            return int(x["width"])
+        # на всякий случай — первый попавшийся числовой value
+        for v in x.values():
             if isinstance(v, (int, float)):
                 return int(v)
     return default
 
 
 st.set_page_config(page_title="Создание маски", layout="wide")
-st.title("Создание маски")
-st.markdown("Загрузите фото, выберите кисть и рисуйте. Пересечения не усиливают цвет в редакторе.")
+st.title("Выделение области для изменения")
+st.markdown("Загрузите фото, выделите область для изменения.")
 
 uploaded_file = st.file_uploader("Выберите изображение:", type=["png", "jpg", "jpeg"])
 if not uploaded_file:
@@ -60,97 +46,82 @@ st.sidebar.header("Настройки кисти")
 stroke_width = st.sidebar.slider("Толщина", 1, 100, 40)
 
 stroke_color = st.sidebar.color_picker("Цвет кисти", "#4E4E4E")
-stroke_color_solid = stroke_color  # непрозрачный (без альфы)
+
+# Фикс против "усиления" на пересечениях: кисть непрозрачная (без альфы) [web:93]
+stroke_color_solid = stroke_color  # "#RRGGBB"
 
 st.sidebar.markdown("---")
 blur_radius = st.sidebar.slider("Размытие маски (px)", 0, 50, 15)
-mask_threshold = st.sidebar.slider("Порог маски (после blur)", 0, 255, 10)
 
+# Layout
 col1, col2 = st.columns([1.5, 1], gap="large")
 
-with col1:
-    st.subheader("Редактор")
+st.subheader("Редактор")
 
-    cw = st_container_width(key="canvas_col_width")
-    available_w_px = extract_width_px(cw, default=900)
+# 3) Fit to available container width (measure inside the column) [web:123]
+available = st_container_width(key="canvas_col_width")
 
-    max_width = max(200, available_w_px - 24)
+available_w = get_width_px(available, default=900)
 
-    if image.width > max_width:
-        ratio = max_width / image.width
-        disp_w = int(max_width)
-        disp_h = int(image.height * ratio)
-        display_image = image.resize((disp_w, disp_h))
-        scale_factor = image.width / disp_w
-    else:
-        display_image = image
-        disp_w, disp_h = image.size
-        scale_factor = 1.0
+# небольшой запас под padding/границы
+max_width = max(200, available_w - 24)
 
-    # IMPORTANT: background_image must be PIL.Image, иначе _resize_img упадёт [web:21]
-    canvas_result = st_canvas(
-        fill_color="rgba(0, 0, 0, 0)",
-        stroke_width=stroke_width,
-        stroke_color=stroke_color_solid,
-        background_image=display_image,
-        update_streamlit=True,
-        height=disp_h,
-        width=disp_w,
-        drawing_mode="freedraw",
-        key="canvas_stable",
-    )
+if image.width > max_width:
+    ratio = max_width / image.width
+    disp_w = int(max_width)
+    disp_h = int(image.height * ratio)
+    display_image = image.resize((disp_w, disp_h))
+    scale_factor = image.width / disp_w
+else:
+    display_image = image
+    disp_w, disp_h = image.size
+    scale_factor = 1.0
 
-with col2:
-    st.subheader("Результат")
+canvas_result = st_canvas(
+    fill_color="rgba(0, 0, 0, 0)",
+    stroke_width=stroke_width,
+    stroke_color=stroke_color_solid,  # непрозрачный цвет
+    background_image=display_image,
+    update_streamlit=True,
+    height=disp_h,
+    width=disp_w,
+    drawing_mode="freedraw",
+    key="canvas_stable",
+)
 
-    if canvas_result.image_data is None:
-        st.info("Нарисуйте область на изображении слева.")
-        st.stop()
+st.subheader("Результат")
 
-    img_data = canvas_result.image_data
-    alpha = img_data[:, :, 3].astype(np.uint8)
+if canvas_result.image_data is None:
+    st.info("Нарисуйте область на изображении слева.")
+    st.stop()
 
-    if np.max(alpha) <= 0:
-        st.info("Нарисуйте область на изображении слева.")
-        st.stop()
+img_data = canvas_result.image_data  # RGBA drawing layer; background not included [web:123]
+alpha = img_data[:, :, 3].astype(np.uint8)
 
-    # Binary mask
-    mask = np.where(alpha > 0, 255, 0).astype(np.uint8)
+if np.max(alpha) <= 0:
+    st.info("Нарисуйте область на изображении слева.")
+    st.stop()
 
-    # Back to original size
-    if scale_factor != 1.0:
-        mask = cv2.resize(mask, (image.width, image.height), interpolation=cv2.INTER_NEAREST)
+# 4) Binary mask: where drawn -> 255
+mask = np.where(alpha > 0, 255, 0).astype(np.uint8)
 
-    # Blur if needed
-    if blur_radius > 0:
-        k = blur_radius * 2 + 1
-        mask = cv2.GaussianBlur(mask, (k, k), blur_radius)
+# 5) Back to original size
+if scale_factor != 1.0:
+    mask = cv2.resize(mask, (image.width, image.height), interpolation=cv2.INTER_NEAREST)
 
-    mask_img = Image.fromarray(mask)
+# 6) Blur mask if needed
+if blur_radius > 0:
+    k = blur_radius * 2 + 1
+    mask = cv2.GaussianBlur(mask, (k, k), blur_radius)
 
-    # Preview: blackout on original
-    orig_np = np.array(image).astype(np.uint8)
-    sel = mask > mask_threshold
-    preview = orig_np.copy()
-    preview[sel] = (0, 0, 0)
-    preview_img = Image.fromarray(preview)
+mask_img = Image.fromarray(mask)
 
-    st.image(preview_img, caption="Превью: выделенная область — чёрная", use_container_width=True)
-
-    buf_prev = io.BytesIO()
-    preview_img.save(buf_prev, format="PNG")
-    st.download_button(
-        "⬇️ Скачать превью PNG",
-        data=buf_prev.getvalue(),
-        file_name="preview_blackout.png",
-        mime="image/png",
-    )
-
-    buf_mask = io.BytesIO()
-    mask_img.save(buf_mask, format="PNG")
-    st.download_button(
-        "⬇️ Скачать маску PNG",
-        data=buf_mask.getvalue(),
-        file_name="mask.png",
-        mime="image/png",
-    )
+# Download mask
+buf_mask = io.BytesIO()
+mask_img.save(buf_mask, format="PNG")
+st.download_button(
+    "⬇️ Скачать маску PNG",
+    data=buf_mask.getvalue(),
+    file_name="mask.png",
+    mime="image/png",
+)
