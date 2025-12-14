@@ -1,6 +1,6 @@
 pip
-streamlit
-streamlit-drawable-canvas-fix
+streamlit==1.40.0 
+streamlit-drawable-canvas==0.9.0
 streamlit-container-width
 pillow
 numpy
