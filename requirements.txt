@@ -1,5 +1,5 @@
 streamlit==1.52.1
-streamlit-drawable-canvas-fix==0.9.8
+streamlit-drawable-canvas==0.9.0
 streamlit-container-width
 pillow==1.0.3
 numpy
