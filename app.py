@@ -4,11 +4,11 @@ from PIL import Image
 import io
 import base64
 
+# Загружаем изображение
 image = Image.open("test.png")
 
 st.title("Signature")
 
-@st.cache_data
 def pil_to_data_url(pil_img):
     """Конвертирует PIL Image в data:URL для стабильной работы на серверах"""
     buf = io.BytesIO()
