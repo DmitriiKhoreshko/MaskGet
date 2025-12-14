@@ -1,32 +1,39 @@
-# Source - https://stackoverflow.com/a
-# Posted by RoseGod
-# Retrieved 2025-12-14, License - CC BY-SA 4.0
-
 import streamlit as st
 from streamlit_drawable_canvas import st_canvas
 from PIL import Image
+import io
+import base64
 
-
-image=Image.open("test.png")
+image = Image.open("test.png")
 
 st.title("Signature")
 
-def signaturefunk(image):
-    
-    st.write("Canvas")
+@st.cache_data
+def pil_to_data_url(pil_img):
+    """Конвертирует PIL Image в data:URL для стабильной работы на серверах"""
+    buf = io.BytesIO()
+    pil_img.save(buf, format="PNG")
+    return f"data:image/png;base64,{base64.b64encode(buf.getvalue()).decode()}"
 
-    canvas_result = st_canvas(
-            fill_color="#eee",
-            stroke_width=5,
-            stroke_color="black",
-            background_image=image,
-            update_streamlit=False,
-            height=200,
-            width=700,
-            drawing_mode="freedraw",
-        )
+def signaturefunk(image):
+    st.write("Canvas")
     
-    st.write("Image of the canvs")
+    # Конвертируем в data:URL для обхода image_to_url ошибки
+    bg_image_url = pil_to_data_url(image)
+    
+    canvas_result = st_canvas(
+        fill_color="#eee",
+        stroke_width=5,
+        stroke_color="black",
+        background_image=bg_image_url,  # Передаем строку, а не PIL
+        update_streamlit=False,
+        height=200,
+        width=700,
+        drawing_mode="freedraw",
+        key="signature_canvas"
+    )
+    
+    st.write("Image of the canvas")
     if canvas_result.image_data is not None:
         st.image(canvas_result.image_data)
 
