@@ -1,8 +1,4 @@
-pip
-streamlit==1.40.0 
-streamlit-drawable-canvas==0.9.0
-streamlit-container-width
-pillow
+streamlit==1.52.1
+streamlit-drawable-canvas==0.9.3
+Pillow
 numpy
-opencv-python-headless
-streamlit-cropperjs
